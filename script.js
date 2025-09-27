@@ -1,4 +1,4 @@
-// script.js (已修复版本)
+// script.js (iOS优化版)
 // 太阳系数据（已整理：保证每个行星是独立对象，添加地球）
 const solarSystemData = {
   sun: {
@@ -160,7 +160,7 @@ const solarSystemData = {
       orbitSpeed: 0.0004,
       rotationSpeed: 0.03,
       textureUrl: "assets/2k_uranus.jpg",
-      description: "天王星的自转轴几乎与公转平面垂直，像在“翻滚”。",
+      description: "天王星的自转轴几乎与公转平面垂直，像在"翻滚"。",
       composition: "主要由氢、氦和甲烷组成",
       orbit: "公转周期：84.01年；自转周期：17.24小时",
       temperature: "云层顶部温度约-224°C",
@@ -326,26 +326,15 @@ function createAsteroidBelt() {
   scene.add(asteroidBeltGroup);
 }
 
-// 创建星空背景
-function createStarBackground() {
-  const starsGeometry = new THREE.BufferGeometry();
-  const starsMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 1,
-    sizeAttenuation: false
+// 创建银河系背景（替换原来的白点星星）
+function createGalaxyBackground() {
+  const galaxyGeometry = new THREE.SphereGeometry(10000, 64, 64);
+  const galaxyMaterial = new THREE.MeshBasicMaterial({
+    map: new THREE.TextureLoader().load('assets/2k_stars_milky_way.jpg'),
+    side: THREE.BackSide
   });
-
-  const starsVertices = [];
-  for (let i = 0; i < 10000; i++) {
-    const x = THREE.MathUtils.randFloatSpread(2000);
-    const y = THREE.MathUtils.randFloatSpread(2000);
-    const z = THREE.MathUtils.randFloatSpread(2000);
-    starsVertices.push(x, y, z);
-  }
-
-  starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-  const starField = new THREE.Points(starsGeometry, starsMaterial);
-  scene.add(starField);
+  const galaxy = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
+  scene.add(galaxy);
 }
 
 // 初始化场景
@@ -367,6 +356,13 @@ function init() {
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
+  
+  // iOS设备优化：调整触摸控制参数
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    controls.rotateSpeed = 0.5;
+    controls.zoomSpeed = 0.8;
+    controls.panSpeed = 0.5;
+  }
 
   // 添加环境光
   const ambientLight = new THREE.AmbientLight(0x404040);
@@ -380,10 +376,10 @@ function init() {
   sunLight.position.set(0, 0, 0);
   scene.add(sunLight);
 
-  // 创建行星、小行星带和星空
+  // 创建行星、小行星带和银河系背景
   createPlanets();
   createAsteroidBelt();
-  createStarBackground();
+  createGalaxyBackground(); // 替换原来的白点星星
 
   // 创建银河系背景（大球体放后面）
   const milkyWayGeometry = new THREE.SphereGeometry(20000, 64, 64);
@@ -403,6 +399,10 @@ function init() {
   document.getElementById('toggleRotation').addEventListener('click', toggleRotation);
   document.getElementById('toggleOrbits').addEventListener('click', toggleOrbits);
   document.getElementById('resetCamera').addEventListener('click', resetCamera);
+  
+  // 添加缩放按钮事件
+  document.getElementById('zoomIn').addEventListener('click', zoomIn);
+  document.getElementById('zoomOut').addEventListener('click', zoomOut);
 
   // 添加点击事件监听器
   setupClickListener();
@@ -608,7 +608,7 @@ function animate() {
 // 按钮功能：暂停/继续自转
 function toggleRotation() {
   rotationEnabled = !rotationEnabled;
-  document.getElementById('toggleRotation').textContent = rotationEnabled ? '暂停/继续自转' : '暂停/继续自转';
+  document.getElementById('toggleRotation').textContent = rotationEnabled ? '暂停自转' : '继续自转';
 }
 
 // 按钮功能：显示/隐藏轨道线
@@ -617,7 +617,7 @@ function toggleOrbits() {
   orbits.forEach(o => {
     o.visible = orbitLinesVisible;
   });
-  document.getElementById('toggleOrbits').textContent = orbitLinesVisible ? '显示/隐藏轨道' : '显示/隐藏轨道';
+  document.getElementById('toggleOrbits').textContent = orbitLinesVisible ? '隐藏轨道' : '显示轨道';
 }
 
 // 按钮功能：重置相机
@@ -625,4 +625,16 @@ function resetCamera() {
   camera.position.set(0, 150, 400);
   controls.target.set(0, 0, 0);
   controls.update();
+}
+
+// 按钮功能：放大
+function zoomIn() {
+  camera.fov /= 1.1;
+  camera.updateProjectionMatrix();
+}
+
+// 按钮功能：缩小
+function zoomOut() {
+  camera.fov *= 1.1;
+  camera.updateProjectionMatrix();
 }
