@@ -1,4 +1,4 @@
-// script.js (iOS优化版)
+// script.js (修复版)
 // 太阳系数据（已整理：保证每个行星是独立对象，添加地球）
 const solarSystemData = {
   sun: {
@@ -43,7 +43,6 @@ const solarSystemData = {
       facts: "金星的大气压力是地球的92倍；自转方向与其他行星相反。"
     },
     {
-      // 新增地球条目（之前数据里没地球）
       name: "地球",
       radius: 10,
       color: 0x2a6fdb,
@@ -160,7 +159,7 @@ const solarSystemData = {
       orbitSpeed: 0.0004,
       rotationSpeed: 0.03,
       textureUrl: "assets/2k_uranus.jpg",
-      description: "天王星的自转轴几乎与公转平面垂直，像在"翻滚"。",
+      description: "天王星的自转轴几乎与公转平面垂直，像在\"翻滚\"。",
       composition: "主要由氢、氦和甲烷组成",
       orbit: "公转周期：84.01年；自转周期：17.24小时",
       temperature: "云层顶部温度约-224°C",
@@ -193,7 +192,7 @@ const solarSystemData = {
 window.addEventListener('load', init);
 
 // 全局变量
-let scene, camera, renderer, controls, milkyWay;
+let scene, camera, renderer, controls, galaxyBackground;
 let sun, planets = [], orbits = [];
 let rotationEnabled = true;
 let orbitLinesVisible = true;
@@ -328,13 +327,15 @@ function createAsteroidBelt() {
 
 // 创建银河系背景（替换原来的白点星星）
 function createGalaxyBackground() {
-  const galaxyGeometry = new THREE.SphereGeometry(10000, 64, 64);
+  const galaxyGeometry = new THREE.SphereGeometry(5000, 64, 64); // 减小半径避免遮挡
   const galaxyMaterial = new THREE.MeshBasicMaterial({
     map: new THREE.TextureLoader().load('assets/2k_stars_milky_way.jpg'),
-    side: THREE.BackSide
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0.9
   });
-  const galaxy = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
-  scene.add(galaxy);
+  galaxyBackground = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
+  scene.add(galaxyBackground);
 }
 
 // 初始化场景
@@ -368,7 +369,10 @@ function init() {
   const ambientLight = new THREE.AmbientLight(0x404040);
   scene.add(ambientLight);
 
-  // 先创建太阳（太阳在场景原点）
+  // 先创建银河系背景（确保在最底层）
+  createGalaxyBackground();
+
+  // 创建太阳（太阳在场景原点）
   createSun();
 
   // 创建太阳光并放到太阳位置（确保在创建太阳后）
@@ -376,26 +380,14 @@ function init() {
   sunLight.position.set(0, 0, 0);
   scene.add(sunLight);
 
-  // 创建行星、小行星带和银河系背景
+  // 创建行星和小行星带
   createPlanets();
   createAsteroidBelt();
-  createGalaxyBackground(); // 替换原来的白点星星
-
-  // 创建银河系背景（大球体放后面）
-  const milkyWayGeometry = new THREE.SphereGeometry(20000, 64, 64);
-  const milkyWayMaterial = new THREE.MeshBasicMaterial({
-    map: new THREE.TextureLoader().load('assets/8k_stars.jpg'),
-    side: THREE.BackSide,
-    color: 0xffffff
-  });
-  milkyWay = new THREE.Mesh(milkyWayGeometry, milkyWayMaterial);
-  milkyWay.visible = false;
-  scene.add(milkyWay);
 
   // 添加窗口大小调整监听
   window.addEventListener('resize', onWindowResize);
 
-  // 添加控制按钮事件（这些函数在本文件底部已实现）
+  // 添加控制按钮事件
   document.getElementById('toggleRotation').addEventListener('click', toggleRotation);
   document.getElementById('toggleOrbits').addEventListener('click', toggleOrbits);
   document.getElementById('resetCamera').addEventListener('click', resetCamera);
@@ -431,6 +423,9 @@ function setupClickListener() {
 
     for (let i = 0; i < intersects.length; i++) {
       const object = intersects[i].object;
+
+      // 跳过背景和其他非天体对象
+      if (object === galaxyBackground) continue;
 
       // 太阳检测
       if (object === sun) {
@@ -591,13 +586,7 @@ function animate() {
   // 更新轨道控制器
   controls.update();
 
-  // 根据相机距离控制 milkyWay 的可见性
-  const distance = camera.position.length();
-  if (milkyWay) {
-    milkyWay.visible = distance > 1000;
-  }
-
-  // 让太阳光始终跟随太阳位置（如果以后太阳移动）
+  // 让太阳光始终跟随太阳位置
   if (sunLight && sun) {
     sunLight.position.copy(sun.position);
   }
@@ -630,11 +619,13 @@ function resetCamera() {
 // 按钮功能：放大
 function zoomIn() {
   camera.fov /= 1.1;
+  if (camera.fov < 10) camera.fov = 10; // 限制最小视野
   camera.updateProjectionMatrix();
 }
 
 // 按钮功能：缩小
 function zoomOut() {
   camera.fov *= 1.1;
+  if (camera.fov > 100) camera.fov = 100; // 限制最大视野
   camera.updateProjectionMatrix();
 }
